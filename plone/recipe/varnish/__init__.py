@@ -27,33 +27,54 @@ class BuildRecipe:
                     "You need to specify either a URL or subversion repository")
             raise zc.buildout.UserError("No download location given")
 
-        location=options["location"]=os.path.join(
-                buildout["buildout"]["parts-directory"], self.name)
+        # If we use a download, then look for a shared Varnish installation directory
+        if self.svn is None and buildout['buildout'].get('varnish-directory') is not None:
+            _, _, urlpath, _, _, _ = urlparse.urlparse(self.url)
+            fname = urlpath.split('/')[-1]
+            # cleanup the name a bit
+            for s in ('.tar', '.bz2', '.gz', '.tgz'):
+                fname = fname.replace(s, '')
+            location = options['location'] = os.path.join(
+                buildout['buildout']['varnish-directory'],fname)
+            options['shared-varnish'] = 'true'
+        else:
+            # put it into parts
+            location = options['location'] = os.path.join(
+                buildout['buildout']['parts-directory'],self.name)
+
         options["source-location"]=os.path.join(location, "source")
         options["binary-location"]=os.path.join(location, "install")
         options["daemon"]=os.path.join(options["binary-location"], "varnishd")
 
         # Set some default options
-        buildout['buildout'].setdefault(
-                'download-directory',
+        buildout['buildout'].setdefault('download-directory',
                 os.path.join(buildout['buildout']['directory'], 'downloads'))
 
 
     def install(self):
-        location=self.options["location"]
-        if not os.path.exists(location):
-            os.mkdir(location)
-        self.options.created(location)
-
-        self.downloadVarnish()
-        self.compileVarnish()
+        self.installVarnish()
         self.addScriptWrappers()
-
-        return self.options.created()
+        if self.url and self.options.get('shared-squid') == 'true':
+            # If the varnish installation is shared, only return non-shared paths 
+            return self.options.created()
+        return self.options.created(self.options["location"])
 
 
     def update(self):
         pass
+
+
+    def installVarnish(self):
+        location=self.options["location"]
+        if os.path.exists(location):
+            # If the varnish installation exists and is shared, then we are done
+            if self.options.get('shared-varnish') == 'true':
+                return
+            else:
+                shutil.rmtree(location)
+        os.mkdir(location)
+        self.downloadVarnish()
+        self.compileVarnish()
 
 
     def downloadVarnish(self):
