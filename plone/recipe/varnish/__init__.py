@@ -169,7 +169,7 @@ class ConfigureRecipe:
                 buildout["buildout"]["parts-directory"], self.name)
 
         # Set some default options
-        self.options["bind"]=self.options.get("bind", "127.0.0.1:8000")
+        self.options["bind"]=self.options.get("bind", "127.0.0.1:8000").lstrip(":")
         self.options["cache-size"]=self.options.get("cache-size", "1G")
         self.options["daemon"]=self.options.get("daemon", 
                 os.path.join(buildout["buildout"]["bin-directory"], "varnishd"))
@@ -184,13 +184,19 @@ class ConfigureRecipe:
         else:
             self.options["generate_config"]="true"
             self.options["backends"]=self.options.get("backends", "127.0.0.1:8080")
-            self.options["config"]=os.path.join(self.options["location"],
-                        "varnish.vcl")
+            self.options["config"]=os.path.join(self.options["location"],"varnish.vcl")
 
-        # Convenience settings
-        (host,port)=self.options["bind"].split(":")
-        self.options["bind-host"]=host
-        self.options["bind-port"]=port
+        # Test for valid bind value
+        bind=self.options["bind"].split(":")
+        if len(bind)==1 and bind[0].isdigit():
+            self.options["bind-host"]=''
+            self.options["bind-port"]=bind[0]
+        elif len(bind)==2 and bind[1].isdigit():
+            self.options["bind-host"]=bind[0]
+            self.options["bind-port"]=bind[1]
+        else:
+            self.logger.error("Invalid syntax for bind")
+            raise zc.buildout.UserError("Invalid syntax for bind")
 
     def install(self):
         location=self.options["location"]
@@ -211,8 +217,7 @@ class ConfigureRecipe:
 
 
     def addVarnishRunner(self):
-        target=os.path.join(self.buildout["buildout"]["bin-directory"],
-                                self.name)
+        target=os.path.join(self.buildout["buildout"]["bin-directory"],self.name)
         f=open(target, "wt")
         print >>f, "#!/bin/sh"
         print >>f, "exec %s \\" % self.options["daemon"]
@@ -252,7 +257,7 @@ class ConfigureRecipe:
         zope2_vhm_map=dict([x.split(":") for x in zope2_vhm_map])
 
         backends=self.options["backends"].strip().split()
-        backends=[x.split(":") for x in backends]
+        backends=[x.rsplit(":",2) for x in backends]
         if len(backends)>1:
             lengths=set([len(x) for x in backends])
             if lengths!=set([3]):
@@ -266,20 +271,41 @@ class ConfigureRecipe:
         for i in range(len(backends)):
             parts=backends[i]
             output+='backend backend_%d {\n' % i
+
+            # no hostname or path, so we have only one backend
             if len(parts)==2:
                 output+='    set backend.host = "%s";\n' % parts[0]
                 output+='    set backend.port = "%s";\n' % parts[1]
+
+            #hostname and/or path is defined, so we may have multiple backends
             elif len(parts)==3:
                 output+='    set backend.host = "%s";\n' % parts[1]
                 output+='    set backend.port = "%s";\n' % parts[2]
-                vhosting+=' elsif (req.http.host ~ "^%s(:[0-9]+)?$") {\n' % parts[0]
+
+                # set backend based on path
+                if parts[0].startswith('/'):
+                    vhosting+=' elsif (req.url ~ "^%s") {\n' % parts[0]
+
+                # set backend based on hostname and path
+                elif parts[0].find('/') != -1:
+                    hostname, path = parts[0].split('/',1)
+                    vhosting+=' elsif (req.http.host ~ "^%s") && (req.url ~ "^/%s") {\n' \
+                                % (hostname, path)
+
+                # set backend based on hostname
+                else:
+                    vhosting+=' elsif (req.http.host ~ "^%s(:[0-9]+)?$") {\n' \
+                                % parts[0]
+
+                    # translate into vhm url if defined for hostname
+                    if parts[0] in zope2_vhm_map:
+                        location=zope2_vhm_map[parts[0]]
+                        if location.startswith("/"):
+                            location=location[1:]
+                        vhosting+='    set req.url = regsub(req.url, "(.*)", "/VirtualHostBase/http/%s:%s/%s/VirtualHostRoot/$1");\n' \
+                                       % (parts[0], self.options["bind-port"], location)
+
                 vhosting+='    set req.backend = backend_%d;\n' % i
-                if parts[0] in zope2_vhm_map:
-                    location=zope2_vhm_map[parts[0]]
-                    if location.startswith("/"):
-                        location=location[1:]
-                    vhosting+='    set req.url = regsub(req.url, "(.*)", "/VirtualHostBase/http/%s:%s/%s/VirtualHostRoot/$1");\n' % \
-                                (parts[0], self.options["bind-port"], location)
                 vhosting+='}'
             else:
                 self.logger.error("Invalid syntax for backend: %s" % 
