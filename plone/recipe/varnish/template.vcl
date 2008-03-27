@@ -37,12 +37,6 @@ sub vcl_hit {
     if (!obj.cacheable) {
         pass;
     }
-    if (obj.http.Cache-Control ~ "public" ) {
-        deliver;
-    }
-    if (req.http.Authenticate || req.http.Authorization) {
-        pass;
-    }
     deliver;
 }
 
