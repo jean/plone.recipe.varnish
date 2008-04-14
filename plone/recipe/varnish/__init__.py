@@ -54,7 +54,7 @@ class BuildRecipe:
     def install(self):
         self.installVarnish()
         self.addScriptWrappers()
-        if self.url and self.options.get('shared-squid') == 'true':
+        if self.url and self.options.get('shared-varnish') == 'true':
             # If the varnish installation is shared, only return non-shared paths 
             return self.options.created()
         return self.options.created(self.options["location"])
@@ -268,33 +268,37 @@ class ConfigureRecipe:
 
         output=""
         vhosting=""
+        tab="    "
         for i in range(len(backends)):
             parts=backends[i]
             output+='backend backend_%d {\n' % i
 
             # no hostname or path, so we have only one backend
             if len(parts)==2:
-                output+='    set backend.host = "%s";\n' % parts[0]
-                output+='    set backend.port = "%s";\n' % parts[1]
+                output+='%sset backend.host = "%s";\n' % (tab, parts[0])
+                output+='%sset backend.port = "%s";\n' % (tab, parts[1])
+                vhosting='set req.backend = backend_0;'
 
             #hostname and/or path is defined, so we may have multiple backends
             elif len(parts)==3:
-                output+='    set backend.host = "%s";\n' % parts[1]
-                output+='    set backend.port = "%s";\n' % parts[2]
+                output+='%sset backend.host = "%s";\n' % (tab, parts[1])
+                output+='%sset backend.port = "%s";\n' % (tab, parts[2])
 
                 # set backend based on path
-                if parts[0].startswith('/'):
-                    vhosting+=' elsif (req.url ~ "^%s") {\n' % parts[0]
+                if parts[0].startswith('/') or parts[0].startswith(':'):
+                    path=parts[0].lstrip(':/')
+                    vhosting+='elsif (req.url ~ "^/%s") {\n' % path
 
                 # set backend based on hostname and path
-                elif parts[0].find('/') != -1:
-                    hostname, path = parts[0].split('/',1)
-                    vhosting+=' elsif (req.http.host ~ "^%s") && (req.url ~ "^/%s") {\n' \
+                elif parts[0].find(':') != -1:
+                    hostname, path = parts[0].split(':',1)
+                    path=path.lstrip(':/')
+                    vhosting+='elsif (req.http.host ~ "^%s(:[0-9]+)?$" && req.url ~ "^/%s") {\n' \
                                 % (hostname, path)
 
                 # set backend based on hostname
                 else:
-                    vhosting+=' elsif (req.http.host ~ "^%s(:[0-9]+)?$") {\n' \
+                    vhosting+='elsif (req.http.host ~ "^%s(:[0-9]+)?$") {\n' \
                                 % parts[0]
 
                     # translate into vhm url if defined for hostname
@@ -302,25 +306,23 @@ class ConfigureRecipe:
                         location=zope2_vhm_map[parts[0]]
                         if location.startswith("/"):
                             location=location[1:]
-                        vhosting+='    set req.url = regsub(req.url, "(.*)", "/VirtualHostBase/http/%s:%s/%s/VirtualHostRoot/$1");\n' \
-                                       % (parts[0], self.options["bind-port"], location)
+                        vhosting+='%sset req.url = regsub(req.url, "(.*)", "/VirtualHostBase/http/%s:%s/%s/VirtualHostRoot/$1");\n' \
+                                       % (tab, parts[0], self.options["bind-port"], location)
 
-                vhosting+='    set req.backend = backend_%d;\n' % i
-                vhosting+='}'
+                vhosting+='%sset req.backend = backend_%d;\n' % (tab, i)
+                vhosting+='}\n'
             else:
                 self.logger.error("Invalid syntax for backend: %s" % 
                                         ":".join(parts))
                 raise zc.buildout.UserError("Invalid syntax for backends")
             output+="}\n\n"
 
-
-        vhosting=vhosting[4:]
-        if len(backends)==0 and len(backends[0])==2:
-            vhosting='set req.backend = backend_0;'
-        elif len(backends[0])==3:
-            vhosting+=' else {\n'
-            vhosting+='    error 404 "Unknown virtual host";\n'
-            vhosting+='}\n'
+        if len(backends[0])==3:
+            vhosting=vhosting[3:]
+            vhosting+='else {\n'
+            vhosting+='%serror 404 "Unknown virtual host";\n' % tab
+            vhosting+='}'
+            vhosting=tab.join(vhosting.splitlines(1))
 
         config["backends"]=output
         config["virtual_hosting"]=vhosting

@@ -2,17 +2,17 @@
 # man page for details on VCL syntax and semantics.
 
 ${backends}
-
 acl purge {
     "localhost";
 }
 
 sub vcl_recv {
-${virtual_hosting}
-
+    
+    ${virtual_hosting}
+    
     if (req.request == "PURGE") {
         if (!client.ip ~ purge) {
-                error 405 "Not allowed.";
+            error 405 "Not allowed.";
         }
         lookup;
     }
@@ -28,7 +28,6 @@ ${virtual_hosting}
     lookup;
 }
 
-
 sub vcl_hit {
     if (req.request == "PURGE") {
         set obj.ttl = 0s;
@@ -40,14 +39,14 @@ sub vcl_hit {
     deliver;
 }
 
-
 sub vcl_miss {
     if (req.http.If-Modified-Since) {
         pass;
     }
     if (req.request == "PURGE") {
-            error 404 "Not in cache";
+        error 404 "Not in cache";
     }
+    fetch;
 }
 
 sub vcl_fetch {
@@ -60,13 +59,10 @@ sub vcl_fetch {
     if (obj.http.Set-Cookie) {
         pass;
     }
-    if (obj.http.Cache-Control ~ "private") {
+    if (obj.http.Cache-Control ~ "(private|no-cache|no-store)") {
         pass;
     }
-    if (obj.http.Cache-Control ~ "public" ) {
-        insert;
-    }
-    if (req.http.Authenticate || req.http.Authorization) {
+    if (req.http.Authorization && !obj.http.Cache-Control ~ "public") {
         pass;
     }
     insert;
