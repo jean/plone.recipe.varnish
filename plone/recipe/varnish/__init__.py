@@ -191,6 +191,7 @@ class ConfigureRecipe:
         if len(bind)==1 and bind[0].isdigit():
             self.options["bind-host"]=''
             self.options["bind-port"]=bind[0]
+            self.options["bind"]=':' + bind[0]
         elif len(bind)==2 and bind[1].isdigit():
             self.options["bind-host"]=bind[0]
             self.options["bind-port"]=bind[1]
