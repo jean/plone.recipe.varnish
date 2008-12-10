@@ -256,7 +256,11 @@ class ConfigureRecipe:
         print >>f, '    -a %s \\' % self.options["bind"]
         if self.options.get("telnet", None):
             print >>f, '    -T %s \\' % self.options["telnet"]
-        print >>f, '    -s file,"%s",%s \\' % (
+        storage = self.options.get('storage', None)
+        if storage is not None:
+            print >>f, '    -s %s \\' % storage
+        else:
+            print >>f, '    -s file,"%s",%s \\' % (
                 os.path.join(self.options["location"], "storage"),
                 self.options["cache-size"])
         if self.options.get("mode", "daemon") == "foreground":

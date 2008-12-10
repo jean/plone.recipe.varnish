@@ -4,6 +4,8 @@ Changelog
 1.0rc8 (unreleased)
 -------------------
 
+* Added new storage option for configuring an arbitrary storage argument
+ [rocky]
 
 
 1.0rc7 (2008-11-26)
