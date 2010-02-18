@@ -43,7 +43,7 @@ class BuildRecipe:
             # put it into parts
             location = options['location'] = os.path.join(
                 buildout['buildout']['parts-directory'],self.name)
-        
+
         options["source-location"]=os.path.join(location, "source")
         options["binary-location"]=os.path.join(location, "install")
         options["daemon"]=os.path.join(options["binary-location"], "varnishd")
@@ -57,7 +57,7 @@ class BuildRecipe:
         self.installVarnish()
         self.addScriptWrappers()
         if self.url and self.options.get('shared-varnish') == 'true':
-            # If the varnish installation is shared, only return non-shared paths 
+            # If the varnish installation is shared, only return non-shared paths
             return self.options.created()
         return self.options.created(self.options["location"])
 
@@ -117,12 +117,12 @@ class BuildRecipe:
 
     def PatchForOSX(self):
         """Patch libtool on OS X.
-        
+
         workaround for http://varnish.projects.linpro.no/ticket/118
         """
         libtool_file_name = os.path.join(self.options["source-location"], 'libtool')
         libtool_source = open(libtool_file_name, 'r').read()
-        libtool_source = libtool_source.replace('export_dynamic_flag_spec=""', 
+        libtool_source = libtool_source.replace('export_dynamic_flag_spec=""',
                                                 'export_dynamic_flag_spec="-flat_namespace"')
         open(libtool_file_name, 'w').write(libtool_source)
 
@@ -131,18 +131,18 @@ class BuildRecipe:
         os.chdir(self.options["source-location"])
         self.logger.info("Compiling Varnish")
         os.chmod("autogen.sh", 0750)
-#        os.chmod("install-sh", 0750)
-        
+        # os.chmod("install-sh", 0750)
+
         if not os.path.exists("configure"):
             assert subprocess.call(["./autogen.sh"]) == 0
         else:
             os.chmod("configure", 0750)
-        
+
         assert subprocess.call(["./configure", "--prefix=" + self.options["binary-location"]]) == 0
-        
+
         if OSX:
             self.PatchForOSX()
-        
+
         assert subprocess.call(["make", "install"]) == 0
 
 
@@ -188,11 +188,16 @@ class ConfigureRecipe:
         self.options["location"] = os.path.join(
                 buildout["buildout"]["parts-directory"], self.name)
 
+        # Expose the download url of a known-good Varnish release
+        url = "http://downloads.sourceforge.net/project/varnish/varnish/2.0.6/varnish-2.0.6.tar.gz"
+        self.options.setdefault("download-url", url)
+
         # Set some default options
         self.options.setdefault("bind", "127.0.0.1:8000")
         self.options.setdefault("cache-size", "1G")
-        self.options.setdefault("daemon", 
+        self.options.setdefault("daemon",
                 os.path.join(buildout["buildout"]["bin-directory"], "varnishd"))
+        self.options.setdfeault("runtime-parameters",[])
         if self.options.has_key("config"):
             if sets.Set(self.options.keys()).intersection(config_excludes):
                 msg = ("When config= option is specified the following "
@@ -242,8 +247,8 @@ class ConfigureRecipe:
 
     def update(self):
         pass
-    
-    
+
+
     def addVarnishRunner(self):
         target=os.path.join(self.buildout["buildout"]["bin-directory"],self.name)
         f=open(target, "wt")
@@ -264,13 +269,15 @@ class ConfigureRecipe:
                 self.options["cache-size"])
         if self.options.get("mode", "daemon") == "foreground":
             print >>f, '    -F \\'
+        for parameter in self.options["runtime-parameters"]:
+            print >>f, '    -p %s \\' % (parameter,)
         print >>f, '    "$@"'
         f.close()
         os.chmod(target, 0755)
-        self.options.created(target)        
+        self.options.created(target)
 
-            
-            
+
+
     def createVarnishConfig(self):
         module = ''
         for x in self.options["recipe"]:
@@ -286,7 +293,7 @@ class ConfigureRecipe:
         zope2_vhm_map=dict([x.split(":") for x in zope2_vhm_map])
 
         balancer = self.options["balancer"].strip().split()
-            
+
         backends=self.options["backends"].strip().split()
         backends=[x.rsplit(":",2) for x in backends]
         if len(backends)>1:
@@ -308,7 +315,7 @@ class ConfigureRecipe:
             elif (balancer[0] == "random"):
                 director+='random {\n'
 
-        
+
         for i in range(len(backends)):
             parts=backends[i]
             output+='backend backend_%d {\n' % i
@@ -334,7 +341,7 @@ class ConfigureRecipe:
                 #add a host to the set to enable purge requests being allowed
                 purgehosts.add(parts[0])
 
-                
+
             #hostname and/or path is defined, so we may have multiple backends
             elif len(parts)==3:
                 output+='.host = "%s";\n' % parts[1]
@@ -385,9 +392,9 @@ class ConfigureRecipe:
                     vhosting+='\tset req.backend = backend_%d;\n' % i
 
                 vhosting+='}\n'
-                
+
             else:
-                self.logger.error("Invalid syntax for backend: %s" % 
+                self.logger.error("Invalid syntax for backend: %s" %
                                         ":".join(parts))
                 raise zc.buildout.UserError("Invalid syntax for backends")
             output+="}\n"
@@ -404,7 +411,7 @@ class ConfigureRecipe:
         #build the purge host string
         purge=""
         for host in purgehosts:
-	    purge+='\t"%s";\n' % host
+            purge+='\t"%s";\n' % host
 
         config["backends"]=output
         config["purgehosts"]=purge
@@ -416,14 +423,11 @@ class ConfigureRecipe:
         for key in verbose_headers:
             if self.options['verbose-headers'] == 'on':
                 pair = verbose_headers[key][1] * ' ', verbose_headers[key][0]
-                config[key] = headertpl % pair                
-            else: 
-                config[key] = ''                
+                config[key] = headertpl % pair
+            else:
+                config[key] = ''
 
         f=open(self.options["config"], "wt")
         f.write(template.safe_substitute(config))
         f.close()
         self.options.created(self.options["config"])
-
-        
-        

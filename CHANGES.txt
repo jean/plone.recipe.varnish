@@ -1,29 +1,55 @@
 Changelog
 =========
 
-1.1 (unreleased)
-----------------
+1.0.3 (unreleased)
+------------------
 
-- Nothing changed yet.
+- Added the ability to configure runtime parameters in the varnish runner
+  configuration and added information to the documentation for it.
+  [benliles]
+
+1.0.2 (2010-01-18)
+------------------
+
+- Update proposed Varnish to 2.0.6.
+  [hannosch]
+
+- Further documentation cleanup.
+  [hannosch, vincentfretin]
+
+1.0.1 (2009-11-27)
+------------------
+
+- Expose the ``download-url`` of a known-good Varnish release that works with
+  the configuration produced by the instance recipe.
+  [hannosch]
+
+- Consistently use tabs in the generated vcl file.
+  [hannosch]
+
+- Whitespace and documentation cleanup.
+  [hannosch]
 
 
 1.0 (2009-08-27)
 ----------------
 
-* Made the vcl template build its acl purge section.  At present, the vcl
-  will only allow purges coming from the local host.  If we have multiple hosts
-  that are separate from localhost, any PURGE requests will be denied without
-  this. See http://varnish.projects.linpro.no/wiki/VCLExamplePurging
+* Made the vcl template build its acl purge section. At present, the vcl will
+  only allow purges coming from the local host. If we have multiple hosts that
+  are separate from localhost, any PURGE requests will be denied without this.
+  See http://varnish.projects.linpro.no/wiki/VCLExamplePurging
   [rockdj]
-* Added ability to set various Varnish timeouts (connect_timeout, first_byte_timeout, 
-  and between_bytes_timeout) from each option in the buildout.  Default values are 
-  set at Varnish defaults of 0.4s for connect_timeout, and 60s for
-  between_bytes_timeout.  Time for first_byte_timeout is set at 300s as per
-  plone.recipe.varnish 1.0rc9.
+
+* Added ability to set various Varnish timeouts (connect_timeout,
+  first_byte_timeout, and between_bytes_timeout) from each option in the
+  buildout. Default values are set at Varnish defaults of 0.4s for
+  connect_timeout, and 60s for between_bytes_timeout. Time for
+  first_byte_timeout is set at 300s as per plone.recipe.varnish 1.0rc9.
   [rockdj]
-* Set `req.http.host` for incoming virtual hosted URLs. 
-  Without setting this, purge requests sent from hosts other than localhost 
-  (the only host in the acl purge list) will result in a 404 message.  See
+
+* Set `req.http.host` for incoming virtual hosted URLs. Without setting this,
+  purge requests sent from hosts other than localhost (the only host in the acl
+  purge list) will result in a 404 message. See
   http://davidjb.com/blog/2009/01/plone-varnish-configuration-cache-hits-purge-fails
   [rockdj]
 
@@ -32,11 +58,12 @@ Changelog
 --------------------
 
 * Reintroduced grace options. What the varnish documentation say about grace:
-  "varnish serves stale (but cacheable) objects while retrieving object from backend".
-  The problem is "default_ttl" value is 120s (see bin/varnishd/mgt_param.c in varnish 2.0.4).
-  Added a special rule for createObject url to not look up in the cache.
+  "varnish serves stale (but cacheable) objects while retrieving object from
+  backend". The problem is "default_ttl" value is 120s (see
+  bin/varnishd/mgt_param.c in varnish 2.0.4). Added a special rule for
+  createObject url to not look up in the cache.
   [vincentfretin]
-  
+
 
 1.0rc10 (2009-06-26)
 --------------------
@@ -93,7 +120,7 @@ Changelog
   not make sense to duplicate its logic here.
   [wichert]
 
-* Add feature to enable verbose headers in varnish.vcl. This is primary 
+* Add feature to enable verbose headers in varnish.vcl. This is primary
   interesting for debugging of cache-settings. See README.txt.
   [jensens]
 
@@ -122,7 +149,7 @@ Changelog
   [newbery]
 
 * We don't need to include Accept-Encoding in the hash. Varnish takes care
-  of Vary negotiation already. 
+  of Vary negotiation already.
   [newbery]
 
 
