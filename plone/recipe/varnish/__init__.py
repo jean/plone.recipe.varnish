@@ -189,7 +189,7 @@ class ConfigureRecipe:
                 buildout["buildout"]["parts-directory"], self.name)
 
         # Expose the download url of a known-good Varnish release
-        url = "http://downloads.sourceforge.net/project/varnish/varnish/2.0.6/varnish-2.0.6.tar.gz"
+        url = "http://downloads.sourceforge.net/project/varnish/varnish/2.1/varnish-2.1.tar.gz"
         self.options.setdefault("download-url", url)
 
         # Set some default options
@@ -412,7 +412,7 @@ class ConfigureRecipe:
 
         config["backends"]=output
         config["purgehosts"]=purge
-        config["virtual_hosting"]=vhosting
+        config["virtual_hosting"]=self.options.get('virtual_hosting', vhosting)
         if (balancer[0] != 'none'):
             config["director"]=director
         else:

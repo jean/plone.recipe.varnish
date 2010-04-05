@@ -4,6 +4,9 @@ Changelog
 1.0.3 (unreleased)
 ------------------
 
+- Update proposed Varnish to 2.1. Note you now need the libpcre3-dev, pkg-config and
+  optionally xsltproc packages installed.
+  [elro]
 
 1.0.2 (2010-01-18)
 ------------------
