@@ -102,7 +102,7 @@ sub vcl_fetch {
     if (beresp.http.Cache-Control ~ "(private|no-cache|no-store)") {${header_fetch_cachecontrol}
         return(pass);
     }
-    if (!beresp.http.X-Anonymous && !beresp.http.Cache-Control ~ "public") {${header_fetch_auth}
+    if (!req.http.X-Anonymous && !beresp.http.Cache-Control ~ "public") {${header_fetch_auth}
         return(pass);
     }
     ${header_fetch_insert}
